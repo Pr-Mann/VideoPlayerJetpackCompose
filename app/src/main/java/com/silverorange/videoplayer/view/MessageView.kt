@@ -7,6 +7,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun MessageView(message: String) {
@@ -18,4 +19,10 @@ fun MessageView(message: String) {
             Text(text = message, modifier = Modifier.align(alignment = Alignment.Center))
         }
     }
+}
+
+@Preview
+@Composable
+fun PreviewMessageView() {
+    MessageView("")
 }

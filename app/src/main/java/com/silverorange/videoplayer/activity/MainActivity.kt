@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
+import com.silverorange.videoplayer.R
 import com.silverorange.videoplayer.api.RetrofitService
+import com.silverorange.videoplayer.network.ConnectionLiveData
 import com.silverorange.videoplayer.repository.VideoRepository
 import com.silverorange.videoplayer.view.MainActivityView
 import com.silverorange.videoplayer.view.MessageView
@@ -14,6 +16,8 @@ import com.silverorange.videoplayer.viewmodel.MainViewModelFactory
 class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
+    private lateinit var connectionLiveData: ConnectionLiveData
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -23,7 +27,15 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(
             this, MainViewModelFactory(mainRepository)
         ).get(MainViewModel::class.java)
-        viewModel.getAllVideos()
+        connectionLiveData = ConnectionLiveData(application)
+
+        connectionLiveData.observe(this) { isConnected ->
+            if (isConnected) {
+                viewModel.getAllVideos()
+            } else {
+                viewModel._errorMessage.value = resources.getString(R.string.no_network)
+            }
+        }
 
         viewModel.errorMessage.observe(this) { errorMessage ->
             if (errorMessage.isNotEmpty()) {

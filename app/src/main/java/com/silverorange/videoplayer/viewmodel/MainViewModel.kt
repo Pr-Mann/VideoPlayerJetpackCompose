@@ -14,7 +14,7 @@ import java.net.SocketTimeoutException
 class MainViewModel(private val videoRepository: VideoRepository) : ViewModel() {
 
     val videoList = MutableLiveData<List<VideoData>>()
-    private val _errorMessage = MutableLiveData<String>()
+    val _errorMessage = MutableLiveData<String>()
     val errorMessage: LiveData<String>
         get() = _errorMessage
 
