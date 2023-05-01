@@ -7,8 +7,9 @@ import androidx.lifecycle.ViewModelProvider
 import com.silverorange.videoplayer.api.RetrofitService
 import com.silverorange.videoplayer.api.VideoRepository
 import com.silverorange.videoplayer.view.MainActivityView
-import com.silverorange.videoplayer.view.MainViewModel
-import com.silverorange.videoplayer.view.MainViewModelFactory
+import com.silverorange.videoplayer.view.MessageView
+import com.silverorange.videoplayer.viewmodel.MainViewModel
+import com.silverorange.videoplayer.viewmodel.MainViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -23,6 +24,14 @@ class MainActivity : ComponentActivity() {
             this, MainViewModelFactory(mainRepository)
         ).get(MainViewModel::class.java)
         viewModel.getAllVideos()
+
+        viewModel.errorMessage.observe(this) { errorMessage ->
+            if (errorMessage.isNotEmpty()) {
+                setContent {
+                    MessageView(message = errorMessage)
+                }
+            }
+        }
 
         viewModel.videoList.observe(this) { videoList ->
             if (videoList.isNotEmpty()) {

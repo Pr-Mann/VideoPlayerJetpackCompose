@@ -1,4 +1,4 @@
-package com.silverorange.videoplayer.view
+package com.silverorange.videoplayer.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

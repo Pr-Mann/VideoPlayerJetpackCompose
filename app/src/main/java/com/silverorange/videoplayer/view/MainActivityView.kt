@@ -23,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,10 +39,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -55,24 +52,9 @@ import com.silverorange.videoplayer.model.VideoData
 @Composable
 fun MainActivityView(videoList: List<VideoData>) {
     Column {
-        TopBar()
+        TopBarView()
         VideoContent(videoList = videoList)
     }
-}
-
-@Composable
-private fun TopBar() {
-    TopAppBar(
-        title = {
-            Text(
-                text = stringResource(id = R.string.app_name),
-                modifier = Modifier.fillMaxWidth(),
-                fontSize = 25.sp,
-                textAlign = TextAlign.Center
-            )
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
 }
 
 @Composable
@@ -341,4 +323,10 @@ private fun CenterControls(
             )
         }
     }
+}
+
+@Preview
+@Composable
+fun PreviewMainActivityView() {
+    MainActivityView(emptyList())
 }
