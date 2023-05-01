@@ -2,7 +2,7 @@ package com.silverorange.videoplayer.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.silverorange.videoplayer.api.VideoRepository
+import com.silverorange.videoplayer.repository.VideoRepository
 
 class MainViewModelFactory(private val repository: VideoRepository) : ViewModelProvider.Factory {
 

@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,9 +40,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
@@ -70,8 +75,14 @@ private fun VideoContent(videoList: List<VideoData>) {
             modifier = Modifier.height(220.dp),
             currentVideoIndex = currentVideoIndex,
             videoURL = currentVideo.hlsURL,
-            onPreviousClick = { (currentVideoIndex - 1) },
-            onNextClick = { (currentVideoIndex + 1) }
+            onPreviousClick = {
+                currentVideoIndex =
+                    if (currentVideoIndex > 0) (currentVideoIndex - 1) else 0
+            },
+            onNextClick = {
+                currentVideoIndex =
+                    if (currentVideoIndex < videoList.lastIndex) (currentVideoIndex + 1) else currentVideoIndex
+            }
         )
 
         Column(
@@ -82,6 +93,12 @@ private fun VideoContent(videoList: List<VideoData>) {
                     rememberScrollState()
                 )
         ) {
+            Text(text = currentVideo.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(
+                text = "Author: ${currentVideo.author.name}",
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 2.dp)
+            )
             Text(
                 text = "Description:\n\n ${currentVideo.description}",
                 modifier = Modifier.padding(top = 4.dp)
@@ -134,28 +151,46 @@ private fun VideoPlayer(
 
     Box(modifier = modifier) {
         DisposableEffect(lifecycleOwner) {
-            val listener =
-                object : Player.Listener {
-                    override fun onEvents(
-                        player: Player,
-                        events: Player.Events
-                    ) {
-                        super.onEvents(player, events)
-                        isPlaying = player.isPlaying
-                        playbackState = player.playbackState
-                    }
+            val lifecycle = lifecycleOwner.lifecycle
+            val observer = object : DefaultLifecycleObserver {
+                override fun onResume(owner: LifecycleOwner) {
+                    exoPlayer.playWhenReady = false
                 }
+
+                override fun onPause(owner: LifecycleOwner) {
+                    exoPlayer.playWhenReady = false
+                }
+
+                override fun onDestroy(owner: LifecycleOwner) {
+                    exoPlayer.release()
+                }
+            }
+            lifecycle.addObserver(observer)
+
+            val listener = object : Player.Listener {
+                override fun onEvents(
+                    player: Player,
+                    events: Player.Events
+                ) {
+                    super.onEvents(player, events)
+                    isPlaying = player.isPlaying
+                    playbackState = player.playbackState
+                }
+            }
 
             exoPlayer.addListener(listener)
 
             onDispose {
+                lifecycle.removeObserver(observer)
                 exoPlayer.removeListener(listener)
                 exoPlayer.release()
             }
         }
 
         AndroidView(
-            factory = {
+            modifier = Modifier.clickable {
+                shouldShowControls = shouldShowControls.not()
+            }, factory = {
                 StyledPlayerView(context).apply {
                     player = exoPlayer
                     useController = false
@@ -178,7 +213,6 @@ private fun VideoPlayer(
             onPauseToggle = {
                 when {
                     exoPlayer.isPlaying -> {
-                        // pause the video
                         exoPlayer.pause()
                     }
 

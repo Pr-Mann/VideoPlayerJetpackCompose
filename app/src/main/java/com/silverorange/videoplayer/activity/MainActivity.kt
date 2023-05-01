@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.ViewModelProvider
 import com.silverorange.videoplayer.api.RetrofitService
-import com.silverorange.videoplayer.api.VideoRepository
+import com.silverorange.videoplayer.repository.VideoRepository
 import com.silverorange.videoplayer.view.MainActivityView
 import com.silverorange.videoplayer.view.MessageView
 import com.silverorange.videoplayer.viewmodel.MainViewModel
