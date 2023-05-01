@@ -3,22 +3,31 @@ package com.silverorange.videoplayer.activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.Text
-import androidx.compose.material.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.ViewModelProvider
+import com.silverorange.videoplayer.api.RetrofitService
+import com.silverorange.videoplayer.api.VideoRepository
 import com.silverorange.videoplayer.view.MainActivityView
+import com.silverorange.videoplayer.view.MainViewModel
+import com.silverorange.videoplayer.view.MainViewModelFactory
 
 class MainActivity : ComponentActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContent {
-      MainActivityView()
+
+    private lateinit var viewModel: MainViewModel
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val retrofitService = RetrofitService.getInstance()
+        val mainRepository = VideoRepository(retrofitService)
+
+        viewModel = ViewModelProvider(
+            this, MainViewModelFactory(mainRepository)
+        ).get(MainViewModel::class.java)
+        viewModel.getAllVideos()
+
+        viewModel.videoList.observe(this) {
+            setContent {
+                MainActivityView()
+            }
+        }
     }
-  }
 }
