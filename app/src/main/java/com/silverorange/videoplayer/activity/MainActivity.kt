@@ -24,9 +24,11 @@ class MainActivity : ComponentActivity() {
         ).get(MainViewModel::class.java)
         viewModel.getAllVideos()
 
-        viewModel.videoList.observe(this) {
-            setContent {
-                MainActivityView()
+        viewModel.videoList.observe(this) { videoList ->
+            if (videoList.isNotEmpty()) {
+                setContent {
+                    MainActivityView(videoList.sortedBy { it.publishedAt }.reversed())
+                }
             }
         }
     }

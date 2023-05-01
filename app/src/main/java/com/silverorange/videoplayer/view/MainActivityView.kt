@@ -2,15 +2,26 @@ package com.silverorange.videoplayer.view
 
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
@@ -22,8 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,12 +50,13 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.silverorange.videoplayer.R
+import com.silverorange.videoplayer.model.VideoData
 
 @Composable
-fun MainActivityView() {
+fun MainActivityView(videoList: List<VideoData>) {
     Column {
         TopBar()
-        VideoContent()
+        VideoContent(videoList = videoList)
     }
 }
 
@@ -59,7 +76,9 @@ private fun TopBar() {
 }
 
 @Composable
-private fun VideoContent() {
+private fun VideoContent(videoList: List<VideoData>) {
+    var currentVideoIndex by remember { mutableStateOf(0) }
+    val currentVideo = videoList[currentVideoIndex]
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -67,8 +86,10 @@ private fun VideoContent() {
     ) {
         VideoPlayer(
             modifier = Modifier.height(220.dp),
-            currentVideoIndex = 0,
-            videoURL = ""
+            currentVideoIndex = currentVideoIndex,
+            videoURL = currentVideo.hlsURL,
+            onPreviousClick = { (currentVideoIndex - 1) },
+            onNextClick = { (currentVideoIndex + 1) }
         )
 
         Column(
@@ -80,7 +101,7 @@ private fun VideoContent() {
                 )
         ) {
             Text(
-                text = "Description:",
+                text = "Description:\n\n ${currentVideo.description}",
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -91,7 +112,9 @@ private fun VideoContent() {
 private fun VideoPlayer(
     modifier: Modifier = Modifier,
     currentVideoIndex: Int,
-    videoURL: String
+    videoURL: String,
+    onPreviousClick: () -> Unit,
+    onNextClick: () -> Unit
 ) {
 
     val context = LocalContext.current
@@ -122,6 +145,7 @@ private fun VideoPlayer(
         }
     }
 
+    var shouldShowControls by remember { mutableStateOf(true) }
     var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
     var playbackState by remember { mutableStateOf(exoPlayer.playbackState) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -161,5 +185,160 @@ private fun VideoPlayer(
                 }
             }
         )
+
+        PlayerControls(
+            modifier = Modifier.fillMaxSize(),
+            isVisible = { shouldShowControls },
+            isPlaying = { isPlaying },
+            playbackState = { playbackState },
+            onPreviousClick = onPreviousClick,
+            onNextClick = onNextClick,
+            onPauseToggle = {
+                when {
+                    exoPlayer.isPlaying -> {
+                        // pause the video
+                        exoPlayer.pause()
+                    }
+
+                    exoPlayer.isPlaying.not() &&
+                            playbackState == Player.STATE_ENDED -> {
+                        exoPlayer.seekTo(0)
+                        exoPlayer.playWhenReady = false
+                    }
+
+                    else -> {
+                        exoPlayer.play()
+                    }
+                }
+                isPlaying = isPlaying.not()
+            }
+        )
+    }
+}
+
+@Composable
+private fun PlayerControls(
+    modifier: Modifier = Modifier,
+    isVisible: () -> Boolean,
+    isPlaying: () -> Boolean,
+    onPreviousClick: () -> Unit,
+    onNextClick: () -> Unit,
+    onPauseToggle: () -> Unit,
+    playbackState: () -> Int
+) {
+
+    val visible = remember(isVisible()) { isVisible() }
+
+    AnimatedVisibility(
+        modifier = modifier,
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut()
+    ) {
+        Box {
+            CenterControls(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(),
+                isPlaying = isPlaying,
+                onPreviousClick = onPreviousClick,
+                onNextClick = onNextClick,
+                onPauseToggle = onPauseToggle,
+                playbackState = playbackState
+            )
+        }
+    }
+}
+
+@Composable
+private fun CenterControls(
+    modifier: Modifier = Modifier,
+    isPlaying: () -> Boolean,
+    playbackState: () -> Int,
+    onPreviousClick: () -> Unit,
+    onPauseToggle: () -> Unit,
+    onNextClick: () -> Unit
+) {
+    val isVideoPlaying = remember(isPlaying()) { isPlaying() }
+
+    val playerState = remember(playbackState()) { playbackState() }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(shape = CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = Color.Black,
+                    shape = CircleShape
+                )
+                .background(color = MaterialTheme.colors.primary), onClick = onPreviousClick
+        ) {
+            Image(
+                modifier = Modifier.size(30.dp),
+                contentScale = ContentScale.Crop,
+                painter = painterResource(id = R.drawable.ic_previous),
+                colorFilter = ColorFilter.tint(Color.White),
+                contentDescription = "Previous"
+            )
+        }
+
+        IconButton(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(shape = CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = Color.Black,
+                    shape = CircleShape
+                )
+                .background(color = MaterialTheme.colors.primary), onClick = onPauseToggle
+        ) {
+            Image(
+                modifier = Modifier.size(35.dp),
+                contentScale = ContentScale.Crop,
+                painter =
+                when {
+                    isVideoPlaying -> {
+                        painterResource(id = R.drawable.ic_pause)
+                    }
+
+                    isVideoPlaying.not() && playerState == Player.STATE_ENDED -> {
+                        painterResource(id = R.drawable.ic_play)
+                    }
+
+                    else -> {
+                        painterResource(id = R.drawable.ic_play)
+                    }
+                },
+                colorFilter = ColorFilter.tint(Color.White),
+                contentDescription = "Play/Pause"
+            )
+        }
+
+        IconButton(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(shape = CircleShape)
+                .border(
+                    width = 1.dp,
+                    color = Color.Black,
+                    shape = CircleShape
+                )
+                .background(color = MaterialTheme.colors.primary), onClick = onNextClick
+        ) {
+            Image(
+                modifier = Modifier.size(30.dp),
+                contentScale = ContentScale.Crop,
+                painter = painterResource(id = R.drawable.ic_next),
+                colorFilter = ColorFilter.tint(Color.White),
+                contentDescription = "Next"
+            )
+        }
     }
 }
