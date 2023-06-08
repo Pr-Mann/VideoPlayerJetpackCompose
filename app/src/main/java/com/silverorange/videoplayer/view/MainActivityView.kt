@@ -1,7 +1,10 @@
 package com.silverorange.videoplayer.view
 
+import android.content.res.Configuration
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +12,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
@@ -53,56 +59,92 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.silverorange.videoplayer.R
 import com.silverorange.videoplayer.model.VideoData
+import io.noties.markwon.Markwon
+import kotlinx.coroutines.delay
 
 @Composable
 fun MainActivityView(videoList: List<VideoData>) {
+    val configuration = LocalConfiguration.current
+    val isFullScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     Column {
-        TopBarView()
-        VideoContent(videoList = videoList)
+        if (!isFullScreen) {
+            TopBarView()
+        }
+        VideoContent(videoList = videoList, isFullScreen = isFullScreen)
     }
 }
 
 @Composable
-private fun VideoContent(videoList: List<VideoData>) {
-    var currentVideoIndex by remember { mutableStateOf(0) }
+private fun VideoContent(videoList: List<VideoData>, isFullScreen: Boolean) {
+    var currentVideoIndex by rememberSaveable { mutableStateOf(0) }
     val currentVideo = videoList[currentVideoIndex]
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val context = LocalContext.current
         VideoPlayer(
-            modifier = Modifier.height(220.dp),
+            modifier = if (isFullScreen) Modifier.fillMaxSize() else Modifier.height(220.dp),
             currentVideoIndex = currentVideoIndex,
             videoURL = currentVideo.hlsURL,
             onPreviousClick = {
                 currentVideoIndex =
-                    if (currentVideoIndex > 0) (currentVideoIndex - 1) else 0
+                    if (currentVideoIndex > 0) {
+                        (currentVideoIndex - 1)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.no_previous_video),
+                            Toast.LENGTH_SHORT
+                        )
+                            .show()
+                        0
+                    }
             },
             onNextClick = {
                 currentVideoIndex =
-                    if (currentVideoIndex < videoList.lastIndex) (currentVideoIndex + 1) else currentVideoIndex
+                    if (currentVideoIndex < videoList.lastIndex) {
+                        (currentVideoIndex + 1)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.no_next_video),
+                            Toast.LENGTH_SHORT
+                        )
+                            .show()
+                        currentVideoIndex
+                    }
             }
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
-                .verticalScroll(
-                    rememberScrollState()
+        if (!isFullScreen) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                    .verticalScroll(
+                        rememberScrollState()
+                    )
+            ) {
+                val markwon = Markwon.create(LocalContext.current)
+                val node = markwon.parse(currentVideo.description)
+                val markdown = markwon.render(node)
+                Text(text = currentVideo.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(
+                    text = currentVideo.author.name,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
+                    color = Color.Gray,
+                    fontWeight = FontWeight.SemiBold
                 )
-        ) {
-            Text(text = currentVideo.title, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text(
-                text = "Author: ${currentVideo.author.name}",
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-            Text(
-                text = "Description:\n\n ${currentVideo.description}",
-                modifier = Modifier.padding(top = 4.dp)
-            )
+                AndroidView(factory = { context ->
+                    val textView = TextView(context)
+                    textView.setTextColor(android.graphics.Color.BLACK)
+                    textView
+                }, update = { textView ->
+                    markwon.setParsedMarkdown(textView, markdown)
+                })
+            }
         }
     }
 }
@@ -117,6 +159,8 @@ private fun VideoPlayer(
 ) {
 
     val context = LocalContext.current
+    var playbackPosition by rememberSaveable { mutableStateOf(0L) }
+    var shouldShowControls by remember { mutableStateOf(true) }
 
     val exoPlayer = remember {
         ExoPlayer.Builder(context)
@@ -140,11 +184,16 @@ private fun VideoPlayer(
                     .build()
             )
             playWhenReady = false
+            seekTo(playbackPosition)
             prepare()
         }
     }
 
-    var shouldShowControls by remember { mutableStateOf(true) }
+    LaunchedEffect(shouldShowControls) {
+        delay(3000)
+        shouldShowControls = false
+    }
+
     var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
     var playbackState by remember { mutableStateOf(exoPlayer.playbackState) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -159,10 +208,15 @@ private fun VideoPlayer(
 
                 override fun onPause(owner: LifecycleOwner) {
                     exoPlayer.playWhenReady = false
+                    playbackPosition = exoPlayer.currentPosition
                 }
 
                 override fun onDestroy(owner: LifecycleOwner) {
                     exoPlayer.release()
+                }
+
+                override fun onCreate(owner: LifecycleOwner) {
+                    exoPlayer.seekTo(playbackPosition)
                 }
             }
             lifecycle.addObserver(observer)
@@ -188,8 +242,11 @@ private fun VideoPlayer(
         }
 
         AndroidView(
-            modifier = Modifier.clickable {
-                shouldShowControls = shouldShowControls.not()
+            modifier = Modifier.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                shouldShowControls = shouldShowControls != true
             }, factory = {
                 StyledPlayerView(context).apply {
                     player = exoPlayer
@@ -208,8 +265,14 @@ private fun VideoPlayer(
             isVisible = { shouldShowControls },
             isPlaying = { isPlaying },
             playbackState = { playbackState },
-            onPreviousClick = onPreviousClick,
-            onNextClick = onNextClick,
+            onPreviousClick = {
+                playbackPosition = 0L
+                onPreviousClick.invoke()
+            },
+            onNextClick = {
+                playbackPosition = 0L
+                onNextClick.invoke()
+            },
             onPauseToggle = {
                 when {
                     exoPlayer.isPlaying -> {
